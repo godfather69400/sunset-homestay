@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -16,18 +14,27 @@ export default function AdminLoginPage() {
     event.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
-    if (!res.ok) {
-      setError("That password did not match.");
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(
+          res.status === 401
+            ? "That password did not match. Use the ADMIN_PASSWORD value from Vercel."
+            : data.error ?? "Could not sign in. Check ADMIN_PASSWORD and ADMIN_SECRET in Vercel.",
+        );
+        return;
+      }
+      window.location.assign("/admin");
+    } catch {
+      setError("Network error. Try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-    router.push("/admin");
-    router.refresh();
   }
 
   return (

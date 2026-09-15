@@ -75,21 +75,25 @@ export function AdminDashboard() {
 
   async function load(nextMonth = month) {
     setLoading(true);
-    const [calRes, bookRes] = await Promise.all([
-      fetch(`/api/admin/calendar?month=${nextMonth}`),
-      fetch("/api/admin/bookings"),
-    ]);
-    const cal = await calRes.json();
-    const book = bookRes.ok ? await bookRes.json() : { bookings: [] };
-    if (!calRes.ok) {
-      toast.error(cal.error ?? "Could not load calendar. Connect Supabase, then seed rooms.");
+    try {
+      const [calRes, bookRes] = await Promise.all([
+        fetch(`/api/admin/calendar?month=${nextMonth}`),
+        fetch("/api/admin/bookings"),
+      ]);
+      const cal = await calRes.json().catch(() => ({}));
+      const book = bookRes.ok ? await bookRes.json() : { bookings: [] };
+      if (!calRes.ok) {
+        toast.error(cal.error ?? "Could not load calendar. Tables may not exist yet.");
+        return;
+      }
+      setDays(cal.days ?? []);
+      setRooms(cal.rooms ?? []);
+      setBookings(book.bookings ?? []);
+    } catch {
+      toast.error("Could not load the owner desk.");
+    } finally {
       setLoading(false);
-      return;
     }
-    setDays(cal.days);
-    setRooms(cal.rooms);
-    setBookings(book.bookings ?? []);
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -202,6 +206,10 @@ export function AdminDashboard() {
           </Button>
         ))}
       </div>
+
+      {loading && rooms.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Loading calendar…</p>
+      ) : null}
 
       {tab === "inventory" && (
         <section className="space-y-3">

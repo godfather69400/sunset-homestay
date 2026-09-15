@@ -19,25 +19,26 @@ export async function GET(request: Request) {
   const start = new Date(year, month, 1);
   const end = new Date(year, month + 1, 1);
 
-  const rooms = await prisma.room.findMany({
-    where: { isActive: true },
-    include: {
-      bookings: {
-        where: {
-          paymentStatus: { in: ["PAID", "PENDING"] },
-          checkIn: { lt: end },
-          checkOut: { gt: start },
+  try {
+    const rooms = await prisma.room.findMany({
+      where: { isActive: true },
+      include: {
+        bookings: {
+          where: {
+            paymentStatus: { in: ["PAID", "PENDING"] },
+            checkIn: { lt: end },
+            checkOut: { gt: start },
+          },
         },
+        priceOverrides: {
+          where: { date: { gte: start, lt: end } },
+        },
+        icalFeeds: true,
       },
-      priceOverrides: {
-        where: { date: { gte: start, lt: end } },
-      },
-      icalFeeds: true,
-    },
-    orderBy: { basePrice: "desc" },
-  });
+      orderBy: { basePrice: "desc" },
+    });
 
-  const days = eachNight(start, end).map((date) => toDateKey(date));
+    const days = eachNight(start, end).map((date) => toDateKey(date));
 
   const payload = rooms.map((room) => {
     const occupancy: Record<
@@ -96,9 +97,13 @@ export async function GET(request: Request) {
     };
   });
 
-  return NextResponse.json({
-    month: `${year}-${String(month + 1).padStart(2, "0")}`,
-    days,
-    rooms: payload,
-  });
+    return NextResponse.json({
+      month: `${year}-${String(month + 1).padStart(2, "0")}`,
+      days,
+      rooms: payload,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not load calendar";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

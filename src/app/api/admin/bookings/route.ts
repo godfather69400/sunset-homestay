@@ -12,7 +12,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const bookings = await prisma.booking.findMany({
+  try {
+    const bookings = await prisma.booking.findMany({
     where: { source: { not: "MANUAL" } },
     include: { room: { select: { name: true, slug: true } } },
     orderBy: { createdAt: "desc" },
@@ -26,30 +27,34 @@ export async function GET() {
     take: 40,
   });
 
-  return NextResponse.json({
-    bookings: [...bookings, ...manualBlocks]
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, 120)
-      .map((booking) => ({
-        id: booking.id,
-        bookingNumber: booking.bookingNumber,
-        guestName: booking.guestName,
-        guestPhone: booking.guestPhone,
-        guestEmail: booking.guestEmail,
-        guestCount: booking.guestCount,
-        checkIn: toDateKey(booking.checkIn),
-        checkOut: toDateKey(booking.checkOut),
-        totalAmount: booking.totalAmount,
-        paymentStatus: booking.paymentStatus,
-        source: booking.source,
-        razorpayOrderId: booking.razorpayOrderId,
-        razorpayPaymentId: booking.razorpayPaymentId,
-        notes: booking.notes,
-        createdAt: booking.createdAt,
-        roomName: booking.room.name,
-        roomSlug: booking.room.slug,
-      })),
-  });
+    return NextResponse.json({
+      bookings: [...bookings, ...manualBlocks]
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, 120)
+        .map((booking) => ({
+          id: booking.id,
+          bookingNumber: booking.bookingNumber,
+          guestName: booking.guestName,
+          guestPhone: booking.guestPhone,
+          guestEmail: booking.guestEmail,
+          guestCount: booking.guestCount,
+          checkIn: toDateKey(booking.checkIn),
+          checkOut: toDateKey(booking.checkOut),
+          totalAmount: booking.totalAmount,
+          paymentStatus: booking.paymentStatus,
+          source: booking.source,
+          razorpayOrderId: booking.razorpayOrderId,
+          razorpayPaymentId: booking.razorpayPaymentId,
+          notes: booking.notes,
+          createdAt: booking.createdAt,
+          roomName: booking.room.name,
+          roomSlug: booking.room.slug,
+        })),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not load bookings";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: Request) {
