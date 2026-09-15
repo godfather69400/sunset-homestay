@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum BookingSource {
+  DIRECT
+  ICAL_MMT
+  ICAL_AIRBNB
+  ICAL_BOOKING
+  MANUAL
+}
+
+enum OtaName {
+  MMT
+  BOOKING_COM
+  AIRBNB
+}
+
+model Room {
+  id           String          @id @default(cuid())
+  name         String
+  slug         String          @unique
+  description  String
+  basePrice    Int
+  maxGuests    Int
+  bedType      String
+  sizeSqFt     Int
+  viewType     String
+  amenities    String[]
+  images       String[]
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  bookings     Booking[]
+  priceOverrides PriceOverride[]
+  icalFeeds    IcalFeed[]
+}
+
+model Booking {
+  id                 String         @id @default(cuid())
+  bookingNumber      String         @unique
+  roomId             String
+  room               Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  guestName          String
+  guestPhone         String
+  guestEmail         String
+  guestCount         Int            @default(1)
+  checkIn            DateTime       @db.Date
+  checkOut           DateTime       @db.Date
+  totalAmount        Int
+  paymentStatus      PaymentStatus  @default(PENDING)
+  source             BookingSource  @default(DIRECT)
+  razorpayOrderId    String?
+  razorpayPaymentId  String?        @unique
+  icalUid            String?
+  notes              String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@unique([roomId, icalUid])
+  @@index([roomId, checkIn, checkOut])
+  @@index([paymentStatus])
+  @@index([razorpayOrderId])
+}
+
+model PriceOverride {
+  id          String   @id @default(cuid())
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  customPrice Int
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([roomId, date])
+  @@index([date])
+}
+
+model IcalFeed {
+  id           String    @id @default(cuid())
+  roomId       String
+  room         Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  otaName      OtaName
+  importUrl    String
+  lastSyncedAt DateTime?
+  lastError    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([roomId, otaName])
+}
