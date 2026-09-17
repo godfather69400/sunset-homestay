@@ -38,7 +38,11 @@ export const priceOverrideSchema = z.object({
 export const icalFeedSchema = z.object({
   roomId: z.string().min(1),
   otaName: z.enum(["MMT", "BOOKING_COM", "AIRBNB"]),
-  importUrl: z.string().url(),
+  importUrl: z
+    .string()
+    .trim()
+    .transform((value) => value.replace(/^webcal:/i, "https:"))
+    .pipe(z.string().url()),
 });
 
 export const roomRateSchema = z.object({

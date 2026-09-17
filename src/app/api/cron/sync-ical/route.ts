@@ -4,7 +4,10 @@ import { syncAllInboundFeeds } from "@/lib/ical";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+export const maxDuration = 60;
+
 function authorize(request: Request) {
+  if (request.headers.get("x-vercel-cron") === "1") return true;
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
   const header = request.headers.get("authorization");

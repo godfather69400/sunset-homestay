@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { isAdminSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { syncInboundFeed } from "@/lib/ical";
 import { icalFeedSchema } from "@/lib/validations";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   if (!(await isAdminSession())) {
@@ -26,5 +28,15 @@ export async function POST(request: Request) {
     create: parsed.data,
   });
 
-  return NextResponse.json({ ok: true, feed });
+  try {
+    const sync = await syncInboundFeed(feed.id);
+    return NextResponse.json({ ok: true, feed, sync });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not pull this calendar";
+    const failed = await prisma.icalFeed.update({
+      where: { id: feed.id },
+      data: { lastError: message, lastSyncedAt: new Date() },
+    });
+    return NextResponse.json({ ok: true, feed: failed, syncError: message });
+  }
 }

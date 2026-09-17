@@ -129,12 +129,21 @@ export function buildOutboundCalendar(
   return calendar;
 }
 
+function normalizeFeedUrl(importUrl: string) {
+  return importUrl.trim().replace(/^webcal:/i, "https:");
+}
+
 export async function fetchAndParseFeed(importUrl: string) {
+  const url = normalizeFeedUrl(importUrl);
   try {
-    const response = await fetch(importUrl, {
+    const response = await fetch(url, {
       cache: "no-store",
-      headers: { Accept: "text/calendar, text/plain, */*" },
-      signal: AbortSignal.timeout(20_000),
+      redirect: "follow",
+      headers: {
+        Accept: "text/calendar, text/plain, */*",
+        "User-Agent": "Mozilla/5.0 (compatible; SunsetPointHomestay/1.0; +https://sunset-homestay.vercel.app)",
+      },
+      signal: AbortSignal.timeout(8_000),
     });
 
     if (!response.ok) {
@@ -164,7 +173,7 @@ export async function fetchAndParseFeed(importUrl: string) {
       fromURL?: (url: string, opts: object, cb: (err: Error | null, data: Record<string, unknown>) => void) => void;
     };
     if (parser.async?.fromURL) {
-      return parser.async.fromURL(importUrl);
+      return parser.async.fromURL(url);
     }
     throw error;
   }
@@ -314,20 +323,18 @@ export async function syncInboundFeed(feedId: string) {
 
 export async function syncAllInboundFeeds() {
   const feeds = await prisma.icalFeed.findMany();
-  const results = [];
-
-  for (const feed of feeds) {
-    try {
-      results.push({ ok: true, ...(await syncInboundFeed(feed.id)) });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown iCal sync error";
-      await prisma.icalFeed.update({
-        where: { id: feed.id },
-        data: { lastError: message, lastSyncedAt: new Date() },
-      });
-      results.push({ ok: false, feedId: feed.id, error: message });
-    }
-  }
-
-  return results;
+  return Promise.all(
+    feeds.map(async (feed) => {
+      try {
+        return { ok: true as const, ...(await syncInboundFeed(feed.id)) };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown iCal sync error";
+        await prisma.icalFeed.update({
+          where: { id: feed.id },
+          data: { lastError: message, lastSyncedAt: new Date() },
+        });
+        return { ok: false as const, feedId: feed.id, error: message };
+      }
+    }),
+  );
 }

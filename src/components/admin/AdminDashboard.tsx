@@ -144,11 +144,17 @@ export function AdminDashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ roomId, otaName, importUrl }),
     });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       toast.error("Could not save iCal URL");
       return;
     }
-    toast.success("OTA feed saved");
+    if (data.syncError) {
+      toast.error(`Saved, but pull failed: ${data.syncError}`);
+    } else {
+      const imported = data.sync?.imported ?? 0;
+      toast.success(`Saved and pulled ${imported} night block${imported === 1 ? "" : "s"}`);
+    }
     await load();
   }
 
@@ -182,12 +188,24 @@ export function AdminDashboard() {
             variant="secondary"
             onClick={async () => {
               const res = await fetch("/api/admin/sync-ical", { method: "POST" });
-              const data = await res.json();
+              const data = await res.json().catch(() => ({}));
               if (!res.ok) {
                 toast.error(data.error ?? "Sync failed");
                 return;
               }
-              toast.success("OTA calendars pulled in");
+              const results = Array.isArray(data.results) ? data.results : [];
+              const failed = results.filter((item: { ok?: boolean }) => item.ok === false);
+              const imported = results.reduce(
+                (sum: number, item: { imported?: number }) => sum + (item.imported ?? 0),
+                0,
+              );
+              if (failed.length) {
+                toast.error(
+                  `Pulled with ${failed.length} error${failed.length === 1 ? "" : "s"}. Check OTA sync for details.`,
+                );
+              } else {
+                toast.success(`OTA calendars pulled in (${imported} night blocks)`);
+              }
               await load(month);
             }}
           >
@@ -531,8 +549,8 @@ function OtaPanel({
             a direct UPI booking immediately blocks those nights on the OTA.
           </li>
           <li>
-            Each OTA also gives you an export .ics URL. Paste it below. Our cron (and the “Pull OTA dates” button)
-            reads those bookings and locks the same nights here, so nobody can double-book on this site.
+            Each OTA also gives you an export .ics URL. Paste it below and tap <strong>Save import</strong> — that
+            also pulls their dates immediately. Use <strong>Pull OTA dates</strong> at the top to refresh all rooms.
           </li>
           <li>
             Google already lists the house as{" "}
@@ -609,11 +627,14 @@ function OtaPanel({
                 Save import
               </Button>
             </div>
-            <div className="md:col-span-4 text-xs text-muted-foreground">
+            <div className="md:col-span-4 space-y-1 text-xs text-muted-foreground">
               {room.icalFeeds.map((feed) => (
                 <div key={feed.id}>
-                  {feed.otaName}: last pull {feed.lastSyncedAt ? format(new Date(feed.lastSyncedAt), "dd MMM HH:mm") : "never"}
-                  {feed.lastError ? ` · ${feed.lastError}` : ""}
+                  {feed.otaName}: last pull{" "}
+                  {feed.lastSyncedAt ? format(new Date(feed.lastSyncedAt), "dd MMM HH:mm") : "never"}
+                  {feed.lastError ? (
+                    <span className="mt-1 block text-destructive">{feed.lastError}</span>
+                  ) : null}
                 </div>
               ))}
             </div>
