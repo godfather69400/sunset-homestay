@@ -627,16 +627,21 @@ function OtaPanel({
                 Save import
               </Button>
             </div>
-            <div className="md:col-span-4 space-y-1 text-xs text-muted-foreground">
-              {room.icalFeeds.map((feed) => (
-                <div key={feed.id}>
-                  {feed.otaName}: last pull{" "}
-                  {feed.lastSyncedAt ? format(new Date(feed.lastSyncedAt), "dd MMM HH:mm") : "never"}
-                  {feed.lastError ? (
-                    <span className="mt-1 block text-destructive">{feed.lastError}</span>
-                  ) : null}
-                </div>
-              ))}
+            <div className="md:col-span-4 space-y-2 text-xs text-muted-foreground">
+              {room.icalFeeds.length === 0 ? (
+                <p>No OTA calendars saved for this room yet.</p>
+              ) : (
+                room.icalFeeds.map((feed) => (
+                  <div key={feed.id} className="rounded-xl bg-muted/50 p-3">
+                    <div className="font-medium text-foreground">{feed.otaName}</div>
+                    <div className="mt-1 break-all">{feed.importUrl}</div>
+                    <div className="mt-1">
+                      last pull {feed.lastSyncedAt ? format(new Date(feed.lastSyncedAt), "dd MMM HH:mm") : "never"}
+                    </div>
+                    {feed.lastError ? <div className="mt-1 text-destructive">{feed.lastError}</div> : null}
+                  </div>
+                ))
+              )}
             </div>
           </form>
         );
