@@ -46,6 +46,8 @@ export async function GET() {
           razorpayOrderId: booking.razorpayOrderId,
           razorpayPaymentId: booking.razorpayPaymentId,
           notes: booking.notes,
+          whatsappSentAt: booking.whatsappSentAt,
+          whatsappError: booking.whatsappError,
           createdAt: booking.createdAt,
           roomName: booking.room.name,
           roomSlug: booking.room.slug,

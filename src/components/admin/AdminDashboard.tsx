@@ -46,6 +46,8 @@ type BookingRow = {
   razorpayOrderId: string | null;
   razorpayPaymentId: string | null;
   notes: string | null;
+  whatsappSentAt: string | null;
+  whatsappError: string | null;
   createdAt: string;
   roomName: string;
 };
@@ -507,12 +509,46 @@ function BookingsPanel({
               <td className="p-3 text-xs text-muted-foreground">
                 <div>Order {booking.razorpayOrderId ?? "—"}</div>
                 <div>Pay {booking.razorpayPaymentId ?? "—"}</div>
-                {booking.notes ? <div>{booking.notes}</div> : null}
+                <div>
+                  WhatsApp{" "}
+                  {booking.whatsappSentAt
+                    ? "sent"
+                    : booking.whatsappError
+                      ? "failed"
+                      : "not sent"}
+                </div>
+                {booking.whatsappError ? (
+                  <div className="mt-1 text-destructive">{booking.whatsappError}</div>
+                ) : null}
+                {booking.notes ? <div className="mt-1">{booking.notes}</div> : null}
               </td>
               <td className="p-3">
-                <Button size="sm" variant="outline" onClick={() => saveNote(booking)}>
-                  Edit details
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button size="sm" variant="outline" onClick={() => saveNote(booking)}>
+                    Edit details
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={async () => {
+                      const res = await fetch("/api/admin/notify-whatsapp", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ id: booking.id }),
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) {
+                        toast.error(data.error ?? "WhatsApp send failed");
+                        await onSaved();
+                        return;
+                      }
+                      toast.success("WhatsApp sent to guest and homestay");
+                      await onSaved();
+                    }}
+                  >
+                    Send WhatsApp
+                  </Button>
+                </div>
               </td>
             </tr>
           ))}

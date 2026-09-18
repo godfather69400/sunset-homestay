@@ -41,7 +41,7 @@ async function markPaid(orderId?: string, paymentId?: string) {
     include: { room: true },
   });
 
-  await sendBookingConfirmation({
+  const whatsapp = await sendBookingConfirmation({
     guestName: updated.guestName,
     guestPhone: updated.guestPhone,
     bookingNumber: updated.bookingNumber,
@@ -49,8 +49,14 @@ async function markPaid(orderId?: string, paymentId?: string) {
     checkOut: updated.checkOut,
     roomName: updated.room.name,
   });
-
-  return updated;
+  return prisma.booking.update({
+    where: { id: updated.id },
+    data: {
+      whatsappSentAt: whatsapp.sent ? new Date() : null,
+      whatsappError: whatsapp.error ?? null,
+    },
+    include: { room: true },
+  });
 }
 
 export async function POST(request: Request) {

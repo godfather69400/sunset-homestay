@@ -55,13 +55,20 @@ export async function POST(request: Request) {
     });
 
     if (booking.paymentStatus !== "PAID") {
-      await sendBookingConfirmation({
+      const whatsapp = await sendBookingConfirmation({
         guestName: updated.guestName,
         guestPhone: updated.guestPhone,
         bookingNumber: updated.bookingNumber,
         checkIn: updated.checkIn,
         checkOut: updated.checkOut,
         roomName: updated.room.name,
+      });
+      await prisma.booking.update({
+        where: { id: updated.id },
+        data: {
+          whatsappSentAt: whatsapp.sent ? new Date() : null,
+          whatsappError: whatsapp.error ?? null,
+        },
       });
     }
 
