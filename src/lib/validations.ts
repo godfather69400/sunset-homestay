@@ -60,10 +60,14 @@ export const priceRangeSchema = z.object({
 
 export const bookingUpdateSchema = z.object({
   id: z.string().min(1),
-  paymentStatus: z.enum(["PENDING", "PAID", "FAILED"]).optional(),
+  paymentStatus: z.enum(["PENDING", "PAID", "FAILED", "CANCELLED"]).optional(),
   notes: z.string().max(400).optional(),
   razorpayPaymentId: z.string().max(80).optional(),
   totalAmount: z.coerce.number().int().min(0).max(200000).optional(),
   guestName: z.string().min(2).max(80).optional(),
   guestPhone: z.string().min(5).max(20).optional(),
+});
+
+export const siteSettingsSchema = z.object({
+  depositPercent: z.coerce.number().int().min(1).max(100),
 });

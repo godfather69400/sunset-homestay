@@ -27,29 +27,88 @@ export const PROPERTY = {
     "/images/property/guest-2309006.jpg",
     "/images/property/guest-2308854.jpg",
   ],
+  // Shown in italics in the footer, out of gratitude to the homestay family.
+  developerNote:
+    "Built out of gratitude for a heartful, welcoming stay of over 50 days — for Vikrant Bhaiya and Seema Bhabhi.",
 } as const;
 
 export const SHARED_AMENITIES = [
   "High-speed Wi-Fi",
   "24-hr Hot Water/Geyser",
+  "Smart TV",
+  "Laundry Service (on request)",
   "Homemade Himachali Food on order",
+  "Rooftop Sit-out",
+  "Rooftop Café & Workation Terrace",
   "Free Parking",
   "Workstation",
 ] as const;
 
-export const WEEKEND_SURGE = 1.2;
-
+// Base nightly rates apply every day by default. Owners can still set special
+// dates (weekends, holidays, festivals) from the admin panel — no automatic
+// weekend surge is applied unless the owner sets one explicitly.
 export const ROOM_CATALOG = [
   {
+    slug: "forest-view-deluxe",
+    name: "Forest View Balcony (101)",
+    roomNumber: "101",
+    sortOrder: 1,
+    description:
+      "A quiet balcony room looking into pine, deodar and the green fields below the house. Attached bath, a comfortable king bed, and the hush of Vill Kotli's forest edge.",
+    basePrice: 1000,
+    maxGuests: 2,
+    bedType: "1 King Bed",
+    sizeSqFt: 150,
+    viewType: "Pine, deodar and village greenery",
+    amenities: [
+      ...SHARED_AMENITIES,
+      "Private Balcony",
+      "Attached Private Bath",
+      "Peaceful pine view",
+    ],
+    images: [
+      "/images/rooms/101/room-101-1.jpeg",
+      "/images/rooms/101/room-101-2.jpeg",
+      "/images/rooms/101/room-101-3.jpeg",
+    ],
+  },
+  {
+    slug: "family-suite",
+    name: "Sunset View Balcony Top (102)",
+    roomNumber: "102",
+    sortOrder: 2,
+    description:
+      "A top-floor balcony room with a wide sit-out over Bir and the Billing ridge — the one families ask for. Comfortable for a couple with room for an extra mattress.",
+    basePrice: 1200,
+    maxGuests: 4,
+    bedType: "1 Double Bed + Extra Mattress/Bunk",
+    sizeSqFt: 280,
+    viewType: "Sunset and valley view from the top-floor balcony",
+    amenities: [
+      ...SHARED_AMENITIES,
+      "Private Balcony",
+      "Family sleeping setup",
+      "Mountain View Balcony",
+    ],
+    images: [
+      "/images/rooms/102/room-102-1.jpeg",
+      "/images/rooms/102/room-102-2.jpeg",
+      "/images/rooms/102/room-102-3.jpeg",
+      "/images/rooms/102/room-102-4.jpeg",
+    ],
+  },
+  {
     slug: "sunset-view-balcony",
-    name: "Sunset View Room with Balcony",
+    name: "Sunset View Balcony (103)",
+    roomNumber: "103",
+    sortOrder: 3,
     description:
       "The room guests book for the actual Bir sunset. Private balcony with a cane sit-out, Dhauladhar valley in front, and paragliders drifting over Kotli at last light.",
-    basePrice: 2200,
+    basePrice: 1200,
     maxGuests: 2,
     bedType: "1 Double Bed",
     sizeSqFt: 150,
-    viewType: "Direct sunset & valley from the private balcony",
+    viewType: "Direct sunset and valley from the private balcony",
     amenities: [
       ...SHARED_AMENITIES,
       "Private Balcony",
@@ -57,73 +116,33 @@ export const ROOM_CATALOG = [
       "Direct sunset outlook",
     ],
     images: [
-      "/images/property/sunset-room.jpg",
-      "/images/property/guest-bcc6f5.jpg",
-      "/images/property/guest-2308938.jpg",
-    ],
-  },
-  {
-    slug: "forest-view-deluxe",
-    name: "Forest View Deluxe Room",
-    description:
-      "A quieter balcony looking into pine, deodar and the green fields below the house. Attached bath, king/double bed, and the hush of Vill Kotli’s forest edge.",
-    basePrice: 1700,
-    maxGuests: 2,
-    bedType: "1 King Bed",
-    sizeSqFt: 150,
-    viewType: "Pine, deodar and village greenery",
-    amenities: [
-      ...SHARED_AMENITIES,
-      "Attached Private Bath",
-      "Peaceful pine view",
-    ],
-    images: [
-      "/images/property/guest-164643.jpg",
-      "/images/property/guest-183602.jpg",
-      "/images/property/guest-091105.jpg",
-    ],
-  },
-  {
-    slug: "family-suite",
-    name: "Mountain View Family Suite",
-    description:
-      "The larger sit-out with table and chairs — the terrace families use. Sleeps 3–4 (double + extra mattress/bunk) with a wide look over Bir, Billing ridge and the valley floor.",
-    basePrice: 2800,
-    maxGuests: 4,
-    bedType: "1 Double Bed + Bunk / Extra Mattress",
-    sizeSqFt: 280,
-    viewType: "Mountain-view terrace over Bir",
-    amenities: [
-      ...SHARED_AMENITIES,
-      "Attached terrace",
-      "Family sleeping setup",
-      "Mountain View Balcony",
-    ],
-    images: [
-      "/images/property/guest-2309006.jpg",
-      "/images/property/guest-164646.jpg",
-      "/images/property/guest-2308854.jpg",
+      "/images/rooms/103/room-103-1.jpeg",
+      "/images/rooms/103/room-103-2.jpeg",
+      "/images/rooms/103/room-103-3.jpeg",
     ],
   },
   {
     slug: "standard-mountain",
-    name: "Standard Cozy Himalayan Room",
+    name: "Triple Bed Balcony, Forest View (104)",
+    roomNumber: "104",
+    sortOrder: 4,
     description:
-      "A compact, workation-friendly room opening onto the same Kotli hillside. High-speed Wi-Fi, mountain air, and a short walk to Bir Bus Stand.",
-    basePrice: 1400,
-    maxGuests: 2,
-    bedType: "1 Double Bed",
-    sizeSqFt: 120,
-    viewType: "Mountain and village view",
+      "A workation-friendly triple room with its own forest-view balcony, opening onto the Kotli hillside. High-speed Wi-Fi, mountain air, and a short walk to Bir Bus Stand.",
+    basePrice: 1500,
+    maxGuests: 3,
+    bedType: "Triple Bed (1 Double + 1 Single)",
+    sizeSqFt: 160,
+    viewType: "Forest and mountain view balcony",
     amenities: [
       ...SHARED_AMENITIES,
+      "Private Balcony",
       "Compact workation setup",
       "Mountain view window",
     ],
     images: [
-      "/images/property/guest-091105.jpg",
-      "/images/property/guest-092449.jpg",
-      "/images/property/guest-183602.jpg",
+      "/images/rooms/104/room-104-1.jpeg",
+      "/images/rooms/104/room-104-2.jpeg",
+      "/images/rooms/104/room-104-3.jpeg",
     ],
   },
 ] as const;

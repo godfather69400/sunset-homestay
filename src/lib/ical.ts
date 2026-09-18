@@ -5,6 +5,7 @@ import { prisma } from "./prisma";
 import { PROPERTY } from "./constants";
 import { addDays, generateBookingNumber, startOfDay, toDateKey } from "./utils";
 import { isRoomAvailable } from "./availability";
+import { notifyFailure } from "./alerts";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sunsetpointbir.com";
 
@@ -277,10 +278,10 @@ export async function syncInboundFeed(feedId: string) {
         );
 
         if (!available) {
+          const message = `${feed.otaName} has a reservation for ${feed.room.name}, ${toDateKey(window.checkIn)} to ${toDateKey(window.checkOut)}, that overlaps a booking already on our calendar. Please check both calendars and cancel the duplicate manually on the OTA side.`;
           skipped += 1;
-          errors.push(
-            `Conflict importing ${uid} for ${feed.room.name} ${toDateKey(window.checkIn)}–${toDateKey(window.checkOut)}`,
-          );
+          errors.push(`Conflict importing ${uid} for ${feed.room.name} ${toDateKey(window.checkIn)}–${toDateKey(window.checkOut)}`);
+          notifyFailure(`Double-booking risk on ${feed.room.name}`, message).catch(() => {});
           continue;
         }
 
@@ -322,7 +323,7 @@ export async function syncInboundFeed(feedId: string) {
 }
 
 export async function syncAllInboundFeeds() {
-  const feeds = await prisma.icalFeed.findMany();
+  const feeds = await prisma.icalFeed.findMany({ include: { room: true } });
   return Promise.all(
     feeds.map(async (feed) => {
       try {
@@ -333,6 +334,10 @@ export async function syncAllInboundFeeds() {
           where: { id: feed.id },
           data: { lastError: message, lastSyncedAt: new Date() },
         });
+        notifyFailure(
+          `OTA calendar sync failed (${feed.otaName} · ${feed.room.name})`,
+          message,
+        ).catch(() => {});
         return { ok: false as const, feedId: feed.id, error: message };
       }
     }),

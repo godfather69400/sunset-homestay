@@ -13,7 +13,7 @@ export async function GET() {
 
   const rooms = await prisma.room.findMany({
     where: { isActive: true },
-    orderBy: { basePrice: "desc" },
+    orderBy: { sortOrder: "asc" },
     select: {
       id: true,
       name: true,
@@ -39,7 +39,7 @@ export async function PATCH(request: Request) {
 
   const room = await prisma.room.update({
     where: { id: parsed.data.roomId },
-    data: { basePrice: parsed.data.basePrice },
+    data: { basePrice: parsed.data.basePrice, basePriceCustomized: true },
   });
 
   return NextResponse.json({ ok: true, room: { id: room.id, basePrice: room.basePrice } });

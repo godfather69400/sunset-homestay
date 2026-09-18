@@ -6,13 +6,16 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatInr } from "@/lib/utils";
+import { formatDayLabel, formatInr } from "@/lib/utils";
 import { PROPERTY } from "@/lib/constants";
 
 type Occupancy = {
   status: "available" | "booked" | "pending" | "blocked";
+  bookingId?: string;
   source?: string;
   guestName?: string;
+  notes?: string | null;
+  bookingNumber?: string;
 };
 
 type RoomRow = {
@@ -41,7 +44,9 @@ type BookingRow = {
   checkIn: string;
   checkOut: string;
   totalAmount: number;
-  paymentStatus: "PENDING" | "PAID" | "FAILED";
+  depositAmount: number;
+  balanceDue: number;
+  paymentStatus: "PENDING" | "PAID" | "FAILED" | "CANCELLED";
   source: string;
   razorpayOrderId: string | null;
   razorpayPaymentId: string | null;
@@ -105,10 +110,6 @@ export function AdminDashboard() {
 
   async function toggleBlock(room: RoomRow, date: string) {
     const current = room.occupancy[date];
-    if (current?.status === "booked" || current?.status === "pending") {
-      toast.error("This night already has a guest booking.");
-      return;
-    }
     const blocked = current?.status !== "blocked";
     const res = await fetch("/api/admin/block", {
       method: "POST",
@@ -120,6 +121,44 @@ export function AdminDashboard() {
       return;
     }
     await load();
+  }
+
+  // Cancels a guest booking (or clears a stale OTA hold) straight from the
+  // calendar cell — the room frees up immediately once cancelled.
+  async function cancelOccupiedCell(room: RoomRow, date: string) {
+    const cell = room.occupancy[date];
+    if (!cell?.bookingId) return;
+    const isOta = cell.source?.startsWith("ICAL_");
+    const label = `${cell.source ?? ""}${cell.guestName ? ` · ${cell.guestName}` : ""}${cell.notes ? ` · ${cell.notes}` : ""}`;
+    const message = isOta
+      ? `${label}\n\nThis night is held by an OTA calendar sync. Only clear it here if you have already cancelled the reservation on that OTA — otherwise it will just re-sync on the next pull.\n\nClear this hold and free the room?`
+      : `${label}\n\nCancel this booking and free the room for ${date}? This cannot be undone from here.`;
+    if (!window.confirm(message)) return;
+
+    const res = await fetch("/api/admin/bookings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: cell.bookingId, paymentStatus: "CANCELLED" }),
+    });
+    if (!res.ok) {
+      toast.error("Could not cancel that booking");
+      return;
+    }
+    toast.success("Booking cancelled and room freed");
+    await load();
+  }
+
+  function handleCellClick(room: RoomRow, date: string, shiftKey: boolean) {
+    if (shiftKey) {
+      saveDayPrice(room, date);
+      return;
+    }
+    const status = room.occupancy[date]?.status ?? "available";
+    if (status === "booked" || status === "pending") {
+      cancelOccupiedCell(room, date);
+      return;
+    }
+    toggleBlock(room, date);
   }
 
   async function saveDayPrice(room: RoomRow, date: string) {
@@ -234,7 +273,8 @@ export function AdminDashboard() {
       {tab === "inventory" && (
         <section className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Tap a cell to block a walk-in or maintenance night. Shift-tap to set that night’s rate.
+            Tap an empty cell to block a walk-in/maintenance night. Tap a booked or OTA cell to see who/what it is and
+            cancel it if needed. Shift-tap any cell to set that night’s rate.
           </p>
           <div className="overflow-x-auto rounded-2xl border bg-card">
             <table className="min-w-[900px] w-full text-xs">
@@ -243,7 +283,7 @@ export function AdminDashboard() {
                   <th className="sticky left-0 z-10 bg-muted/80 p-3 text-left">Room</th>
                   {days.map((day) => (
                     <th key={day} className="p-2 font-medium">
-                      {day.slice(8)}
+                      {formatDayLabel(day)}
                     </th>
                   ))}
                 </tr>
@@ -261,14 +301,8 @@ export function AdminDashboard() {
                         <td key={day} className="p-1">
                           <button
                             type="button"
-                            title={`${cell.status}${cell.guestName ? ` · ${cell.guestName}` : ""}`}
-                            onClick={(event) => {
-                              if (event.shiftKey) {
-                                saveDayPrice(room, day);
-                                return;
-                              }
-                              toggleBlock(room, day);
-                            }}
+                            title={`${cell.status}${cell.source ? ` · ${cell.source}` : ""}${cell.guestName ? ` · ${cell.guestName}` : ""}${cell.notes ? ` · ${cell.notes}` : ""}`}
+                            onClick={(event) => handleCellClick(room, day, event.shiftKey)}
                             className={`flex h-14 w-14 flex-col items-center justify-center rounded-lg ${STATUS_CLASS[cell.status]}`}
                           >
                             <span className="font-medium">
@@ -301,6 +335,84 @@ export function AdminDashboard() {
         <OtaPanel rooms={rooms} origin={origin} onSaveFeed={saveFeed} />
       )}
     </div>
+  );
+}
+
+function DepositSettingsPanel() {
+  const [depositPercent, setDepositPercent] = useState<number | null>(null);
+  const [draft, setDraft] = useState("100");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.depositPercent === "number") {
+          setDepositPercent(data.depositPercent);
+          setDraft(String(data.depositPercent));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function save() {
+    const value = Number(draft);
+    if (!Number.isFinite(value) || value < 1 || value > 100) {
+      toast.error("Enter a percentage between 1 and 100");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ depositPercent: value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Could not save");
+        return;
+      }
+      setDepositPercent(data.depositPercent);
+      toast.success(
+        data.depositPercent >= 100
+          ? "Guests will pay 100% online to book"
+          : `Guests now pay ${data.depositPercent}% online — the rest at check-in`,
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="space-y-3 rounded-2xl border bg-card p-5">
+      <h2 className="font-serif text-2xl">Advance payment</h2>
+      <p className="text-sm text-muted-foreground">
+        How much of the total stay a guest must pay online to confirm the booking. The rest is collected at
+        check-in. Set to 100 to require full payment upfront, like before.
+      </p>
+      <div className="flex items-end gap-3">
+        <div>
+          <Label>Advance %</Label>
+          <Input
+            type="number"
+            min={1}
+            max={100}
+            className="mt-1 w-28"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+          />
+        </div>
+        <Button onClick={save} disabled={saving}>
+          Save
+        </Button>
+        {depositPercent !== null && (
+          <span className="text-sm text-muted-foreground">
+            Currently: {depositPercent}% online{depositPercent < 100 ? ", rest at check-in" : ""}
+          </span>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -358,10 +470,12 @@ function RatesPanel({ rooms, onSaved }: { rooms: RoomRow[]; onSaved: () => Promi
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      <DepositSettingsPanel />
       <section className="space-y-4 rounded-2xl border bg-card p-5">
         <h2 className="font-serif text-2xl">Everyday base rate</h2>
         <p className="text-sm text-muted-foreground">
-          This is what guests pay on weekdays when you have not set a special date. Save each room after you edit it.
+          This is what guests pay every night by default — no automatic weekend surge is applied. Use “Special
+          dates” below for weekends, holidays or events. Save each room after you edit it.
         </p>
         {rooms.map((room) => (
           <div key={room.id} className="flex flex-wrap items-end gap-3 border-b pb-4">
@@ -462,105 +576,136 @@ function BookingsPanel({
     await onSaved();
   }
 
+  async function cancelBooking(booking: BookingRow) {
+    if (
+      !window.confirm(
+        `Cancel booking ${booking.bookingNumber} for ${booking.guestName} (${booking.checkIn} → ${booking.checkOut})? This frees the room and cannot be undone from here.`,
+      )
+    ) {
+      return;
+    }
+    await updateStatus(booking.id, "CANCELLED");
+  }
+
   return (
-    <section className="overflow-x-auto rounded-2xl border bg-card">
-      <table className="min-w-[980px] w-full text-sm">
-        <thead className="bg-muted/60 text-left">
-          <tr>
-            <th className="p-3">Booking</th>
-            <th className="p-3">Guest</th>
-            <th className="p-3">Stay</th>
-            <th className="p-3">Amount</th>
-            <th className="p-3">Status</th>
-            <th className="p-3">Payment ids</th>
-            <th className="p-3" />
-          </tr>
-        </thead>
-        <tbody>
-          {bookings.map((booking) => (
-            <tr key={booking.id} className="border-t">
-              <td className="p-3">
-                <div className="font-medium">{booking.bookingNumber}</div>
-                <div className="text-xs text-muted-foreground">
-                  {booking.roomName} · {booking.source}
-                </div>
-              </td>
-              <td className="p-3">
-                {booking.guestName}
-                <div className="text-xs text-muted-foreground">{booking.guestPhone}</div>
-              </td>
-              <td className="p-3">
-                {booking.checkIn} → {booking.checkOut}
-              </td>
-              <td className="p-3">{formatInr(booking.totalAmount)}</td>
-              <td className="p-3">
-                <select
-                  className="h-9 rounded-lg border bg-card px-2 text-xs"
-                  value={booking.paymentStatus}
-                  onChange={(event) =>
-                    updateStatus(booking.id, event.target.value as BookingRow["paymentStatus"])
-                  }
-                >
-                  <option value="PENDING">PENDING</option>
-                  <option value="PAID">PAID</option>
-                  <option value="FAILED">FAILED</option>
-                </select>
-              </td>
-              <td className="p-3 text-xs text-muted-foreground">
-                <div>Order {booking.razorpayOrderId ?? "—"}</div>
-                <div>Pay {booking.razorpayPaymentId ?? "—"}</div>
-                <div>
-                  WhatsApp{" "}
-                  {booking.whatsappSentAt
-                    ? "sent"
-                    : booking.whatsappError
-                      ? "failed"
-                      : "not sent"}
-                </div>
-                {booking.whatsappError ? (
-                  <div className="mt-1 text-destructive">{booking.whatsappError}</div>
-                ) : null}
-                {booking.notes ? <div className="mt-1">{booking.notes}</div> : null}
-              </td>
-              <td className="p-3">
-                <div className="flex flex-col gap-2">
-                  <Button size="sm" variant="outline" onClick={() => saveNote(booking)}>
-                    Edit details
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={async () => {
-                      const res = await fetch("/api/admin/notify-whatsapp", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id: booking.id }),
-                      });
-                      const data = await res.json().catch(() => ({}));
-                      if (!res.ok) {
-                        toast.error(data.error ?? "WhatsApp send failed");
-                        await onSaved();
-                        return;
-                      }
-                      toast.success("WhatsApp sent to guest and homestay");
-                      await onSaved();
-                    }}
-                  >
-                    Send WhatsApp
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
-          {!bookings.length && (
+    <section className="space-y-2">
+      <p className="text-sm text-muted-foreground">
+        Only bookings taken directly on this site (plus paid walk-ins you enter here) show up below. OTA bookings
+        imported from Airbnb/MMT/Booking.com appear as blocks on the Calendar tab — tap a booked cell there to see
+        who it is or to cancel it.
+      </p>
+      <div className="overflow-x-auto rounded-2xl border bg-card">
+        <table className="min-w-[1080px] w-full text-sm">
+          <thead className="bg-muted/60 text-left">
             <tr>
-              <td className="p-6 text-muted-foreground" colSpan={7}>
-                No guest payments yet. Direct UPI bookings and OTA imports will show up here.
-              </td>
+              <th className="p-3">Booking</th>
+              <th className="p-3">Guest</th>
+              <th className="p-3">Stay</th>
+              <th className="p-3">Amount</th>
+              <th className="p-3">Status</th>
+              <th className="p-3">Payment ids</th>
+              <th className="p-3" />
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {bookings.map((booking) => (
+              <tr key={booking.id} className="border-t">
+                <td className="p-3">
+                  <div className="font-medium">{booking.bookingNumber}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {booking.roomName} · {booking.source}
+                  </div>
+                </td>
+                <td className="p-3">
+                  {booking.guestName}
+                  <div className="text-xs text-muted-foreground">{booking.guestPhone}</div>
+                </td>
+                <td className="p-3">
+                  {booking.checkIn} → {booking.checkOut}
+                </td>
+                <td className="p-3">
+                  {formatInr(booking.totalAmount)}
+                  {booking.balanceDue > 0 ? (
+                    <div className="text-xs text-muted-foreground">
+                      Paid {formatInr(booking.depositAmount)} · Due {formatInr(booking.balanceDue)} at check-in
+                    </div>
+                  ) : null}
+                </td>
+                <td className="p-3">
+                  <select
+                    className="h-9 rounded-lg border bg-card px-2 text-xs"
+                    value={booking.paymentStatus}
+                    onChange={(event) =>
+                      updateStatus(booking.id, event.target.value as BookingRow["paymentStatus"])
+                    }
+                  >
+                    <option value="PENDING">PENDING</option>
+                    <option value="PAID">PAID</option>
+                    <option value="FAILED">FAILED</option>
+                    <option value="CANCELLED">CANCELLED</option>
+                  </select>
+                </td>
+                <td className="p-3 text-xs text-muted-foreground">
+                  <div>Order {booking.razorpayOrderId ?? "—"}</div>
+                  <div>Pay {booking.razorpayPaymentId ?? "—"}</div>
+                  <div>
+                    WhatsApp{" "}
+                    {booking.whatsappSentAt
+                      ? "sent"
+                      : booking.whatsappError
+                        ? "failed"
+                        : "not sent"}
+                  </div>
+                  {booking.whatsappError ? (
+                    <div className="mt-1 text-destructive">{booking.whatsappError}</div>
+                  ) : null}
+                  {booking.notes ? <div className="mt-1">{booking.notes}</div> : null}
+                </td>
+                <td className="p-3">
+                  <div className="flex flex-col gap-2">
+                    <Button size="sm" variant="outline" onClick={() => saveNote(booking)}>
+                      Edit details
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={async () => {
+                        const res = await fetch("/api/admin/notify-whatsapp", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ id: booking.id }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                          toast.error(data.error ?? "WhatsApp send failed");
+                          await onSaved();
+                          return;
+                        }
+                        toast.success("WhatsApp sent to guest and homestay");
+                        await onSaved();
+                      }}
+                    >
+                      Send WhatsApp
+                    </Button>
+                    {booking.paymentStatus !== "CANCELLED" && (
+                      <Button size="sm" variant="destructive" onClick={() => cancelBooking(booking)}>
+                        Cancel & unblock
+                      </Button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {!bookings.length && (
+              <tr>
+                <td className="p-6 text-muted-foreground" colSpan={7}>
+                  No direct guest payments yet. UPI bookings taken on this site will show up here.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
@@ -587,6 +732,13 @@ function OtaPanel({
           <li>
             Each OTA also gives you an export .ics URL. Paste it below and tap <strong>Save import</strong> — that
             also pulls their dates immediately. Use <strong>Pull OTA dates</strong> at the top to refresh all rooms.
+            A background job also pulls every hour automatically.
+          </li>
+          <li>
+            We cannot see inside the OTA&apos;s own system, so we cannot confirm they have pulled our calendar — that
+            depends on how often each OTA refreshes on their side. If a guest ever books the same night on two
+            platforms, our sync detects the overlap and texts you (and the developer) a “double-booking risk” alert
+            on WhatsApp instead of silently importing it, so you can cancel the duplicate manually.
           </li>
           <li>
             Google already lists the house as{" "}

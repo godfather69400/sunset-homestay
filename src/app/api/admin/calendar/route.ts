@@ -35,7 +35,7 @@ export async function GET(request: Request) {
         },
         icalFeeds: true,
       },
-      orderBy: { basePrice: "desc" },
+      orderBy: { sortOrder: "asc" },
     });
 
     const days = eachNight(start, end).map((date) => toDateKey(date));
@@ -43,7 +43,14 @@ export async function GET(request: Request) {
   const payload = rooms.map((room) => {
     const occupancy: Record<
       string,
-      { status: "available" | "booked" | "pending" | "blocked"; bookingId?: string; source?: string; guestName?: string }
+      {
+        status: "available" | "booked" | "pending" | "blocked";
+        bookingId?: string;
+        source?: string;
+        guestName?: string;
+        notes?: string | null;
+        bookingNumber?: string;
+      }
     > = {};
 
     for (const day of days) {
@@ -64,6 +71,8 @@ export async function GET(request: Request) {
           bookingId: booking.id,
           source: booking.source,
           guestName: booking.guestName,
+          notes: booking.notes,
+          bookingNumber: booking.bookingNumber,
         };
       }
     }

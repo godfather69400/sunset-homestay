@@ -5,19 +5,25 @@ const prisma = new PrismaClient();
 
 async function main() {
   for (const room of ROOM_CATALOG) {
+    const existing = await prisma.room.findUnique({ where: { slug: room.slug } });
+
     await prisma.room.upsert({
       where: { slug: room.slug },
+      // Keep name/photos/description/order in sync with the code on every
+      // deploy, but never clobber a basePrice the owner has already set from
+      // the admin panel — that field is only reseeded until they touch it.
       update: {
         name: room.name,
         description: room.description,
-        basePrice: room.basePrice,
         maxGuests: room.maxGuests,
         bedType: room.bedType,
         sizeSqFt: room.sizeSqFt,
         viewType: room.viewType,
         amenities: [...room.amenities],
         images: [...room.images],
+        sortOrder: room.sortOrder,
         isActive: true,
+        ...(existing && !existing.basePriceCustomized ? { basePrice: room.basePrice } : {}),
       },
       create: {
         name: room.name,
@@ -30,6 +36,7 @@ async function main() {
         viewType: room.viewType,
         amenities: [...room.amenities],
         images: [...room.images],
+        sortOrder: room.sortOrder,
         isActive: true,
       },
     });

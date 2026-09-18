@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendBookingConfirmation } from "@/lib/whatsapp";
+import { notifyFailure } from "@/lib/alerts";
 import { createHmac, timingSafeEqual } from "crypto";
 import { z } from "zod";
 
@@ -62,6 +63,9 @@ export async function POST(request: Request) {
         checkIn: updated.checkIn,
         checkOut: updated.checkOut,
         roomName: updated.room.name,
+        totalAmount: updated.totalAmount,
+        depositAmount: updated.depositAmount,
+        balanceDue: updated.balanceDue,
       });
       await prisma.booking.update({
         where: { id: updated.id },
@@ -78,9 +82,9 @@ export async function POST(request: Request) {
       paymentStatus: updated.paymentStatus,
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Verification failed" },
-      { status: 500 },
-    );
+    const message = error instanceof Error ? error.message : "Verification failed";
+    console.error("payment verify failed", error);
+    notifyFailure("Payment verification failed", message).catch(() => {});
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -68,6 +68,14 @@ export function normalizePhone(phone: string) {
   return `+${digits}`;
 }
 
+/** "12 Sat" style label for calendar headers — shows date and weekday together. */
+export function formatDayLabel(dateKey: string) {
+  const date = parseDateKey(dateKey);
+  if (!date) return dateKey;
+  const weekday = new Intl.DateTimeFormat("en-IN", { weekday: "short" }).format(date);
+  return `${date.getDate()} ${weekday}`;
+}
+
 export function formatDisplayDate(date: Date | string) {
   const value = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-IN", {

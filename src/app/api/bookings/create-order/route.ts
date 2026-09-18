@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isRoomAvailable, parseStayDates } from "@/lib/availability";
-import { quoteStay } from "@/lib/pricing";
+import { quoteStay, splitDeposit } from "@/lib/pricing";
 import { generateBookingNumber, normalizePhone } from "@/lib/utils";
 import { createOrderSchema } from "@/lib/validations";
 import { getRazorpay, rupeesToPaise } from "@/lib/razorpay";
+import { getDepositPercent } from "@/lib/settings";
+import { notifyFailure } from "@/lib/alerts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +52,8 @@ export async function POST(request: Request) {
     }
 
     const quote = quoteStay(room.basePrice, checkIn, checkOut, room.priceOverrides);
+    const depositPercent = await getDepositPercent();
+    const { depositAmount, balanceDue } = splitDeposit(quote.totalAmount, depositPercent);
     const bookingNumber = generateBookingNumber();
     const razorpay = getRazorpay();
 
@@ -64,13 +68,15 @@ export async function POST(request: Request) {
         checkIn,
         checkOut,
         totalAmount: quote.totalAmount,
+        depositAmount,
+        balanceDue,
         paymentStatus: "PENDING",
         source: "DIRECT",
       },
     });
 
     const order = await razorpay.orders.create({
-      amount: rupeesToPaise(quote.totalAmount),
+      amount: rupeesToPaise(depositAmount),
       currency: "INR",
       receipt: bookingNumber,
       notes: {
@@ -78,6 +84,9 @@ export async function POST(request: Request) {
         bookingNumber,
         roomId: room.id,
         roomName: room.name,
+        totalAmount: quote.totalAmount,
+        depositAmount,
+        balanceDue,
       },
     });
 
@@ -89,7 +98,10 @@ export async function POST(request: Request) {
     return NextResponse.json({
       bookingId: booking.id,
       bookingNumber,
-      amount: quote.totalAmount,
+      amount: depositAmount,
+      totalAmount: quote.totalAmount,
+      balanceDue,
+      depositPercent,
       nights: quote.nights,
       breakdown: quote.breakdown,
       razorpayOrderId: order.id,
@@ -97,10 +109,9 @@ export async function POST(request: Request) {
       room: { id: room.id, name: room.name, slug: room.slug },
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not create payment order";
     console.error("create-order failed", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Could not create payment order" },
-      { status: 500 },
-    );
+    notifyFailure("Booking checkout failed", message).catch(() => {});
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Mountain, Users, Maximize, BedDouble } from "lucide-react";
+import { Mountain, Users, BedDouble } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatInr } from "@/lib/utils";
@@ -33,12 +33,9 @@ export function RoomCard({ room, onBook }: RoomCardProps) {
           <h3 className="font-serif text-2xl leading-tight">{room.name}</h3>
           <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{room.description}</p>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <BedDouble className="h-3.5 w-3.5" /> {room.bedType}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Maximize className="h-3.5 w-3.5" /> {room.sizeSqFt} sq.ft
           </span>
           <span className="flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5" /> {room.maxGuests} guests
@@ -55,7 +52,7 @@ export function RoomCard({ room, onBook }: RoomCardProps) {
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">From</p>
             <p className="font-serif text-2xl">{formatInr(room.basePrice)}</p>
-            <p className="text-xs text-muted-foreground">per night · weekends may surge</p>
+            <p className="text-xs text-muted-foreground">per night</p>
           </div>
           <div className="flex flex-col gap-2">
             <Button onClick={() => onBook?.(room)}>Book now</Button>

@@ -46,7 +46,7 @@ export async function getActiveRooms(): Promise<PublicRoom[]> {
   try {
     const rooms = await prisma.room.findMany({
       where: { isActive: true },
-      orderBy: { basePrice: "desc" },
+      orderBy: { sortOrder: "asc" },
     });
     if (rooms.length) return rooms.map(withCatalogPhotos);
   } catch (error) {

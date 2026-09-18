@@ -22,6 +22,11 @@ export function Footer() {
           <p className="mt-2 text-white/70">Taxi from Baijnath · paragliding in Billing on request.</p>
         </div>
       </div>
+      <div className="mx-auto max-w-6xl px-4 pb-8">
+        <p className="border-t border-white/10 pt-6 text-center text-xs italic text-white/50">
+          {PROPERTY.developerNote}
+        </p>
+      </div>
     </footer>
   );
 }

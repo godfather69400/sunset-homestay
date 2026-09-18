@@ -13,19 +13,22 @@ export async function GET() {
   }
 
   try {
+    // Payments only lists bookings taken directly on this site (plus real,
+    // charged walk-ins entered by the owner). OTA-imported holds are shown as
+    // calendar metadata instead — see the Calendar tab.
     const bookings = await prisma.booking.findMany({
-    where: { source: { not: "MANUAL" } },
-    include: { room: { select: { name: true, slug: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 120,
-  });
+      where: { source: "DIRECT" },
+      include: { room: { select: { name: true, slug: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 120,
+    });
 
-  const manualBlocks = await prisma.booking.findMany({
-    where: { source: "MANUAL", totalAmount: { gt: 0 } },
-    include: { room: { select: { name: true, slug: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 40,
-  });
+    const manualBlocks = await prisma.booking.findMany({
+      where: { source: "MANUAL", totalAmount: { gt: 0 } },
+      include: { room: { select: { name: true, slug: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 40,
+    });
 
     return NextResponse.json({
       bookings: [...bookings, ...manualBlocks]
@@ -41,6 +44,8 @@ export async function GET() {
           checkIn: toDateKey(booking.checkIn),
           checkOut: toDateKey(booking.checkOut),
           totalAmount: booking.totalAmount,
+          depositAmount: booking.depositAmount,
+          balanceDue: booking.balanceDue,
           paymentStatus: booking.paymentStatus,
           source: booking.source,
           razorpayOrderId: booking.razorpayOrderId,

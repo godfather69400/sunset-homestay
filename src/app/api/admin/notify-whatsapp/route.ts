@@ -33,6 +33,9 @@ export async function POST(request: Request) {
     checkIn: booking.checkIn,
     checkOut: booking.checkOut,
     roomName: booking.room.name,
+    totalAmount: booking.totalAmount,
+    depositAmount: booking.depositAmount,
+    balanceDue: booking.balanceDue,
   });
 
   await prisma.booking.update({

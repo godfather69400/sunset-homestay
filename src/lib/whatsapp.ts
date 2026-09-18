@@ -9,7 +9,24 @@ type ConfirmationInput = {
   checkIn: Date | string;
   checkOut: Date | string;
   roomName: string;
+  totalAmount?: number;
+  depositAmount?: number;
+  balanceDue?: number;
 };
+
+function paymentLines(input: ConfirmationInput) {
+  const lines: string[] = [];
+  if (typeof input.totalAmount === "number") {
+    lines.push(`- Total stay cost: ₹${input.totalAmount}`);
+  }
+  if (input.balanceDue && input.balanceDue > 0) {
+    lines.push(`- Paid now (advance): ₹${input.depositAmount ?? 0}`);
+    lines.push(`- Balance due at check-in: ₹${input.balanceDue}`);
+  } else if (typeof input.depositAmount === "number") {
+    lines.push(`- Amount paid: ₹${input.depositAmount}`);
+  }
+  return lines;
+}
 
 export function formatConfirmationMessage(input: ConfirmationInput) {
   return [
@@ -18,6 +35,7 @@ export function formatConfirmationMessage(input: ConfirmationInput) {
     `- Check-in: ${formatDisplayDate(input.checkIn)} (${PROPERTY.checkIn})`,
     `- Check-out: ${formatDisplayDate(input.checkOut)} (${PROPERTY.checkOut})`,
     `- Room: ${input.roomName}`,
+    ...paymentLines(input),
     `- Google Maps: ${PROPERTY.mapsUrl}`,
     `Need a taxi from Baijnath or paragliding? Reply on this chat.`,
   ].join("\n");
@@ -32,6 +50,7 @@ export function formatOwnerMessage(input: ConfirmationInput) {
     `- Room: ${input.roomName}`,
     `- Check-in: ${formatDisplayDate(input.checkIn)} (${PROPERTY.checkIn})`,
     `- Check-out: ${formatDisplayDate(input.checkOut)} (${PROPERTY.checkOut})`,
+    ...paymentLines(input),
   ].join("\n");
 }
 
@@ -90,7 +109,7 @@ async function sendViaCloudApi(to: string, body: string) {
   }
 }
 
-async function sendWhatsApp(to: string, body: string) {
+export async function sendWhatsApp(to: string, body: string) {
   const provider = process.env.WHATSAPP_PROVIDER ?? "twilio";
   if (provider === "meta") {
     await sendViaCloudApi(to, body);

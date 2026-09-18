@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendBookingConfirmation } from "@/lib/whatsapp";
+import { notifyFailure } from "@/lib/alerts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,6 +49,9 @@ async function markPaid(orderId?: string, paymentId?: string) {
     checkIn: updated.checkIn,
     checkOut: updated.checkOut,
     roomName: updated.room.name,
+    totalAmount: updated.totalAmount,
+    depositAmount: updated.depositAmount,
+    balanceDue: updated.balanceDue,
   });
   return prisma.booking.update({
     where: { id: updated.id },
@@ -64,6 +68,14 @@ export async function POST(request: Request) {
   const signature = request.headers.get("x-razorpay-signature");
 
   if (!verifyWebhookSignature(rawBody, signature)) {
+    // Only alert when a signature header was actually present but didn't
+    // match — that suggests a real misconfiguration, not random bot traffic.
+    if (signature) {
+      notifyFailure(
+        "Razorpay webhook signature mismatch",
+        "A webhook call had a signature that didn't match — check RAZORPAY_WEBHOOK_SECRET matches the one saved in Razorpay's dashboard webhook settings.",
+      ).catch(() => {});
+    }
     return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
   }
 
@@ -86,16 +98,28 @@ export async function POST(request: Request) {
 
     if (event === "payment.failed") {
       if (payment?.order_id) {
+        const failedBooking = await prisma.booking.findFirst({
+          where: { razorpayOrderId: payment.order_id, paymentStatus: "PENDING" },
+          include: { room: true },
+        });
         await prisma.booking.updateMany({
           where: { razorpayOrderId: payment.order_id, paymentStatus: "PENDING" },
           data: { paymentStatus: "FAILED" },
         });
+        if (failedBooking) {
+          notifyFailure(
+            "Guest payment failed",
+            `Booking ${failedBooking.bookingNumber} for ${failedBooking.room.name} did not go through. Guest: ${failedBooking.guestName} (${failedBooking.guestPhone}).`,
+          ).catch(() => {});
+        }
       }
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Webhook processing failed";
     console.error("razorpay webhook failed", error);
+    notifyFailure("Razorpay webhook error", message).catch(() => {});
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }

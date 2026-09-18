@@ -35,7 +35,7 @@ export function RoomDetail({ room }: { room: PublicRoom }) {
             {formatInr(room.basePrice)} <span className="text-base font-sans text-muted-foreground">/ night</span>
           </p>
           <p className="text-sm text-muted-foreground">
-            {room.bedType} · {room.sizeSqFt} sq.ft · up to {room.maxGuests} guests
+            {room.bedType} · up to {room.maxGuests} guests
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {room.amenities.map((amenity) => (

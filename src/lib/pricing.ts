@@ -1,4 +1,3 @@
-import { WEEKEND_SURGE } from "./constants";
 import { eachNight, toDateKey } from "./utils";
 
 export type PriceOverrideLike = {
@@ -11,6 +10,11 @@ export function isWeekendNight(date: Date) {
   return day === 5 || day === 6;
 }
 
+/**
+ * Nightly rate is always the room's base rate unless the owner has set a
+ * special date (weekend, holiday, festival) from the admin panel. No surge is
+ * applied automatically — the "weekend" flag below is informational only.
+ */
 export function nightlyRate(
   basePrice: number,
   date: Date,
@@ -18,7 +22,6 @@ export function nightlyRate(
 ) {
   const override = overrides.get(toDateKey(date));
   if (typeof override === "number") return override;
-  if (isWeekendNight(date)) return Math.round(basePrice * WEEKEND_SURGE);
   return basePrice;
 }
 
@@ -47,7 +50,7 @@ export function quoteStay(
   const breakdown = nights.map((date) => ({
     date: toDateKey(date),
     amount: nightlyRate(basePrice, date, overrideMap),
-    weekend: isWeekendNight(date) && !overrideMap.has(toDateKey(date)),
+    weekend: isWeekendNight(date),
     overridden: overrideMap.has(toDateKey(date)),
   }));
 
@@ -58,4 +61,13 @@ export function quoteStay(
     breakdown,
     totalAmount,
   };
+}
+
+/** Splits a stay total into the advance to charge now and the balance due at check-in. */
+export function splitDeposit(totalAmount: number, depositPercent: number) {
+  const clampedPercent = Math.min(100, Math.max(1, Math.round(depositPercent)));
+  const depositAmount =
+    clampedPercent >= 100 ? totalAmount : Math.min(totalAmount, Math.max(1, Math.round((totalAmount * clampedPercent) / 100)));
+  const balanceDue = Math.max(0, totalAmount - depositAmount);
+  return { depositAmount, balanceDue, depositPercent: clampedPercent };
 }

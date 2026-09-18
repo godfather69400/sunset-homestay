@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DateRangePicker } from "@/components/booking/DateRangePicker";
 import { formatInr } from "@/lib/utils";
+import { splitDeposit } from "@/lib/pricing";
 import { PROPERTY } from "@/lib/constants";
 import type { PublicRoom } from "@/lib/rooms";
 
@@ -75,6 +76,16 @@ export function BookingModal({
   const [quote, setQuote] = useState<{ totalAmount: number; nights: number; breakdown: QuoteNight[] } | null>(null);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [depositPercent, setDepositPercent] = useState(100);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.depositPercent === "number") setDepositPercent(data.depositPercent);
+      })
+      .catch(() => {});
+  }, []);
 
   const form = useForm<GuestForm>({
     resolver: zodResolver(guestSchema),
@@ -158,7 +169,10 @@ export function BookingModal({
         amount: data.amount * 100,
         currency: "INR",
         name: PROPERTY.name,
-        description: `${room.name} · ${data.nights} night(s)`,
+        description:
+          data.balanceDue > 0
+            ? `${room.name} · ${data.nights} night(s) · advance payment`
+            : `${room.name} · ${data.nights} night(s)`,
         order_id: data.razorpayOrderId,
         prefill: {
           name: values.guestName,
@@ -257,13 +271,29 @@ export function BookingModal({
                   <li key={night.date} className="flex justify-between">
                     <span>
                       {night.date}
-                      {night.weekend ? " · weekend" : ""}
                       {night.overridden ? " · seasonal" : ""}
                     </span>
                     <span>{formatInr(night.amount)}</span>
                   </li>
                 ))}
               </ul>
+              {depositPercent < 100 ? (
+                (() => {
+                  const { depositAmount, balanceDue } = splitDeposit(quote.totalAmount, depositPercent);
+                  return (
+                    <div className="mt-3 space-y-1 border-t pt-2">
+                      <div className="flex justify-between font-medium text-foreground">
+                        <span>Pay now ({depositPercent}% advance)</span>
+                        <span>{formatInr(depositAmount)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span>Balance at check-in</span>
+                        <span>{formatInr(balanceDue)}</span>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : null}
               <p className="mt-2 text-xs">
                 Check-in {PROPERTY.checkIn} · Check-out {PROPERTY.checkOut}
               </p>
@@ -272,7 +302,9 @@ export function BookingModal({
 
           <Button type="submit" className="w-full" disabled={!canPay || submitting}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Pay with UPI / Cards
+            {depositPercent < 100 && quote
+              ? `Pay ${formatInr(splitDeposit(quote.totalAmount, depositPercent).depositAmount)} now`
+              : "Pay with UPI / Cards"}
           </Button>
         </form>
       </DialogContent>
