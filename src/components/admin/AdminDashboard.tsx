@@ -731,8 +731,9 @@ function OtaPanel({
           </li>
           <li>
             Each OTA also gives you an export .ics URL. Paste it below and tap <strong>Save import</strong> — that
-            also pulls their dates immediately. Use <strong>Pull OTA dates</strong> at the top to refresh all rooms.
-            A background job also pulls every hour automatically.
+            also pulls their dates immediately. Use <strong>Pull OTA dates</strong> at the top any time you want an
+            instant refresh of all rooms. A background job also pulls once a day automatically (our free hosting
+            plan only allows daily automatic jobs — use the Pull button above whenever you want it sooner).
           </li>
           <li>
             We cannot see inside the OTA&apos;s own system, so we cannot confirm they have pulled our calendar — that
