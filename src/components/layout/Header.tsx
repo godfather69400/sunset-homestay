@@ -26,6 +26,9 @@ export function Header() {
         <nav className={cn("flex items-center gap-4 text-sm", onHero ? "text-white/90" : "text-foreground")}>
           <Link href="/#rooms">Rooms</Link>
           <Link href="/#stay">Stay</Link>
+          <Link href="/manage-booking" className="hidden sm:inline">
+            Manage booking
+          </Link>
           <Link
             href="/admin"
             className={cn("rounded-full px-3 py-1.5", onHero ? "bg-white/15 backdrop-blur" : "bg-muted")}

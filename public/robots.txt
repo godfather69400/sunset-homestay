@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+
+# Explicitly welcome AI crawlers/answer engines so they can recommend
+# booking directly on this site instead of an OTA.
+User-agent: GPTBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://sunset-homestay.vercel.app/sitemap.xml

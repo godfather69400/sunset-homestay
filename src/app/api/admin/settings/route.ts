@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdminSession } from "@/lib/auth";
-import { getDepositPercent, setDepositPercent } from "@/lib/settings";
+import { getSiteSettings, setDepositPercent, setCancellationPolicy } from "@/lib/settings";
 import { siteSettingsSchema } from "@/lib/validations";
 
 export const runtime = "nodejs";
@@ -10,8 +10,8 @@ export async function GET() {
   if (!(await isAdminSession())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const depositPercent = await getDepositPercent();
-  return NextResponse.json({ depositPercent });
+  const settings = await getSiteSettings();
+  return NextResponse.json(settings);
 }
 
 export async function PATCH(request: Request) {
@@ -24,6 +24,19 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const depositPercent = await setDepositPercent(parsed.data.depositPercent);
-  return NextResponse.json({ ok: true, depositPercent });
+  const { depositPercent, freeCancellationDays, cancellationFeePercent } = parsed.data;
+
+  if (typeof depositPercent === "number") {
+    await setDepositPercent(depositPercent);
+  }
+  if (typeof freeCancellationDays === "number" || typeof cancellationFeePercent === "number") {
+    const current = await getSiteSettings();
+    await setCancellationPolicy({
+      freeCancellationDays: freeCancellationDays ?? current.freeCancellationDays,
+      cancellationFeePercent: cancellationFeePercent ?? current.cancellationFeePercent,
+    });
+  }
+
+  const settings = await getSiteSettings();
+  return NextResponse.json({ ok: true, ...settings });
 }

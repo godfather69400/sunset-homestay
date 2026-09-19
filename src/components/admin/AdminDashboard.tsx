@@ -53,6 +53,9 @@ type BookingRow = {
   notes: string | null;
   whatsappSentAt: string | null;
   whatsappError: string | null;
+  cancelledAt?: string | null;
+  cancelledBy?: string | null;
+  refundAmount?: number | null;
   createdAt: string;
   roomName: string;
 };
@@ -416,6 +419,104 @@ function DepositSettingsPanel() {
   );
 }
 
+function CancellationSettingsPanel() {
+  const [freeCancellationDays, setFreeCancellationDays] = useState<number | null>(null);
+  const [cancellationFeePercent, setCancellationFeePercent] = useState<number | null>(null);
+  const [daysDraft, setDaysDraft] = useState("3");
+  const [feeDraft, setFeeDraft] = useState("25");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.freeCancellationDays === "number") {
+          setFreeCancellationDays(data.freeCancellationDays);
+          setDaysDraft(String(data.freeCancellationDays));
+        }
+        if (typeof data.cancellationFeePercent === "number") {
+          setCancellationFeePercent(data.cancellationFeePercent);
+          setFeeDraft(String(data.cancellationFeePercent));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function save() {
+    const days = Number(daysDraft);
+    const fee = Number(feeDraft);
+    if (!Number.isFinite(days) || days < 0 || days > 30) {
+      toast.error("Enter a free-cancellation window between 0 and 30 days");
+      return;
+    }
+    if (!Number.isFinite(fee) || fee < 0 || fee > 100) {
+      toast.error("Enter a cancellation fee between 0 and 100%");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ freeCancellationDays: days, cancellationFeePercent: fee }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Could not save");
+        return;
+      }
+      setFreeCancellationDays(data.freeCancellationDays);
+      setCancellationFeePercent(data.cancellationFeePercent);
+      toast.success("Cancellation policy saved");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="space-y-3 rounded-2xl border bg-card p-5">
+      <h2 className="font-serif text-2xl">Cancellation policy</h2>
+      <p className="text-sm text-muted-foreground">
+        Guests can cancel their own booking at <code>/manage-booking</code>. If they cancel at least this many days
+        before check-in, they get a full refund. Closer than that, this fee is deducted and the rest refunded
+        (automatically via Razorpay when possible).
+      </p>
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <Label>Free cancellation (days before check-in)</Label>
+          <Input
+            type="number"
+            min={0}
+            max={30}
+            className="mt-1 w-40"
+            value={daysDraft}
+            onChange={(event) => setDaysDraft(event.target.value)}
+          />
+        </div>
+        <div>
+          <Label>Late cancellation fee (%)</Label>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            className="mt-1 w-32"
+            value={feeDraft}
+            onChange={(event) => setFeeDraft(event.target.value)}
+          />
+        </div>
+        <Button onClick={save} disabled={saving}>
+          Save
+        </Button>
+        {freeCancellationDays !== null && cancellationFeePercent !== null && (
+          <span className="text-sm text-muted-foreground">
+            Currently: free up to {freeCancellationDays}d before check-in, {cancellationFeePercent}% fee after that
+          </span>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function RatesPanel({ rooms, onSaved }: { rooms: RoomRow[]; onSaved: () => Promise<void> }) {
   const [drafts, setDrafts] = useState<Record<string, number>>({});
   const [from, setFrom] = useState("");
@@ -471,6 +572,7 @@ function RatesPanel({ rooms, onSaved }: { rooms: RoomRow[]; onSaved: () => Promi
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <DepositSettingsPanel />
+      <CancellationSettingsPanel />
       <section className="space-y-4 rounded-2xl border bg-card p-5">
         <h2 className="font-serif text-2xl">Everyday base rate</h2>
         <p className="text-sm text-muted-foreground">
@@ -628,6 +730,14 @@ function BookingsPanel({
                   {booking.balanceDue > 0 ? (
                     <div className="text-xs text-muted-foreground">
                       Paid {formatInr(booking.depositAmount)} · Due {formatInr(booking.balanceDue)} at check-in
+                    </div>
+                  ) : null}
+                  {booking.paymentStatus === "CANCELLED" && booking.cancelledBy ? (
+                    <div className="text-xs text-muted-foreground">
+                      Cancelled by {booking.cancelledBy.toLowerCase()}
+                      {typeof booking.refundAmount === "number" && booking.refundAmount > 0
+                        ? ` · Refund ${formatInr(booking.refundAmount)}`
+                        : ""}
                     </div>
                   ) : null}
                 </td>

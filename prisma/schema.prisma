@@ -75,6 +75,9 @@ model Booking {
   notes              String?
   whatsappSentAt     DateTime?
   whatsappError      String?
+  cancelledAt        DateTime?
+  cancelledBy        String?
+  refundAmount       Int?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
@@ -116,5 +119,11 @@ model IcalFeed {
 model SiteSetting {
   id             String   @id @default("singleton")
   depositPercent Int      @default(100)
+  // Cancellation policy the owner controls from the admin panel: guests get a
+  // full refund if they cancel at least `freeCancellationDays` before
+  // check-in; after that, `cancellationFeePercent` of the amount already
+  // paid is forfeited and the rest is refunded.
+  freeCancellationDays   Int @default(3)
+  cancellationFeePercent Int @default(25)
   updatedAt      DateTime @updatedAt
 }

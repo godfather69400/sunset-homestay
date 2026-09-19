@@ -105,6 +105,12 @@ export default async function BookingSuccessPage({
             Back to rooms
           </Link>
         </div>
+        <p className="mt-4 text-xs text-muted-foreground">
+          Plans changed?{" "}
+          <Link href={`/manage-booking${ref ? `?ref=${ref}` : ""}`} className="underline underline-offset-4">
+            Manage or cancel this booking
+          </Link>
+        </p>
       </div>
     </main>
   );

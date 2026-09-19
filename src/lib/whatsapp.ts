@@ -54,6 +54,58 @@ export function formatOwnerMessage(input: ConfirmationInput) {
   ].join("\n");
 }
 
+type CancellationInput = {
+  guestName: string;
+  guestPhone: string;
+  bookingNumber: string;
+  checkIn: Date | string;
+  checkOut: Date | string;
+  roomName: string;
+  refundAmount: number;
+  refundedAutomatically: boolean;
+};
+
+export function formatCancellationMessage(input: CancellationInput) {
+  const lines = [
+    `Your booking at Sunset Point Homestay, Bir has been cancelled.`,
+    `- Booking ID: ${input.bookingNumber}`,
+    `- Room: ${input.roomName}`,
+    `- Dates: ${formatDisplayDate(input.checkIn)} – ${formatDisplayDate(input.checkOut)}`,
+  ];
+  if (input.refundAmount > 0) {
+    lines.push(
+      input.refundedAutomatically
+        ? `- Refund: ₹${input.refundAmount} has been sent back to your original payment method (usually 5-7 working days).`
+        : `- Refund: ₹${input.refundAmount} is due back to you — the owner will process this manually and confirm here.`,
+    );
+  } else {
+    lines.push(`- No refund is due as per the cancellation policy for this booking.`);
+  }
+  lines.push(`Questions? Just reply on this chat.`);
+  return lines.join("\n");
+}
+
+export function formatOwnerCancellationMessage(input: CancellationInput) {
+  const lines = [
+    `A guest cancelled their direct booking.`,
+    `- Booking ID: ${input.bookingNumber}`,
+    `- Guest: ${input.guestName} (${normalizePhone(input.guestPhone)})`,
+    `- Room: ${input.roomName}`,
+    `- Dates: ${formatDisplayDate(input.checkIn)} – ${formatDisplayDate(input.checkOut)}`,
+  ];
+  if (input.refundAmount > 0) {
+    lines.push(
+      input.refundedAutomatically
+        ? `- ₹${input.refundAmount} was auto-refunded via Razorpay.`
+        : `- ₹${input.refundAmount} refund could NOT be auto-processed — please refund the guest manually via UPI.`,
+    );
+  } else {
+    lines.push(`- No refund due (cancellation fee applies as per policy).`);
+  }
+  lines.push(`The room is now free on the calendar.`);
+  return lines.join("\n");
+}
+
 export function ownerWhatsAppNumber() {
   const raw = process.env.WHATSAPP_OWNER_NUMBER ?? process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? PROPERTY.phoneDigits;
   return normalizePhone(raw);

@@ -71,3 +71,27 @@ export function splitDeposit(totalAmount: number, depositPercent: number) {
   const balanceDue = Math.max(0, totalAmount - depositAmount);
   return { depositAmount, balanceDue, depositPercent: clampedPercent };
 }
+
+/**
+ * How much of the amount already paid gets refunded if a guest cancels right
+ * now. Free cancellation if there are still `freeCancellationDays` or more
+ * days left before check-in; otherwise the owner's cancellation fee is
+ * forfeited and the rest is refunded.
+ */
+export function computeCancellationRefund(
+  amountPaid: number,
+  checkIn: Date,
+  policy: { freeCancellationDays: number; cancellationFeePercent: number },
+  now: Date = new Date(),
+) {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const daysUntilCheckIn = Math.ceil((startOfDayLocal(checkIn).getTime() - startOfDayLocal(now).getTime()) / msPerDay);
+  const isFree = daysUntilCheckIn >= policy.freeCancellationDays;
+  const feeAmount = isFree ? 0 : Math.round((amountPaid * policy.cancellationFeePercent) / 100);
+  const refundAmount = Math.max(0, amountPaid - feeAmount);
+  return { daysUntilCheckIn, isFree, feeAmount, refundAmount };
+}
+
+function startOfDayLocal(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}

@@ -20,11 +20,37 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(PROPERTY.siteUrl),
   title: {
-    default: `${PROPERTY.name} · Bir Billing`,
+    default: `${PROPERTY.name} · Bir Billing — Book Direct & Save`,
     template: `%s · ${PROPERTY.name}`,
   },
-  description: PROPERTY.tagline,
+  description:
+    "Book Sunset Point Homestay in Bir Billing directly and skip the 15-20% OTA commission MakeMyTrip, Goibibo and Airbnb charge. Pay a partial advance, message the owner directly on WhatsApp, and cancel easily if plans change.",
+  keywords: [
+    "Sunset Point Homestay",
+    "Bir Billing homestay",
+    "Bir homestay direct booking",
+    "Bir Billing paragliding stay",
+    "cheap homestay Bir",
+    "book direct Bir Himachal",
+  ],
+  alternates: { canonical: PROPERTY.siteUrl },
+  openGraph: {
+    title: `${PROPERTY.name} · Bir Billing`,
+    description: PROPERTY.tagline,
+    url: PROPERTY.siteUrl,
+    siteName: PROPERTY.name,
+    images: [PROPERTY.heroImage],
+    locale: "en_IN",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${PROPERTY.name} · Bir Billing`,
+    description: PROPERTY.tagline,
+    images: [PROPERTY.heroImage],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

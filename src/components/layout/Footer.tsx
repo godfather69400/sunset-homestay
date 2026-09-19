@@ -20,12 +20,26 @@ export function Footer() {
             Google Maps directions
           </Link>
           <p className="mt-2 text-white/70">Taxi from Baijnath · paragliding in Billing on request.</p>
+          <p className="mt-2">
+            <Link className="underline underline-offset-4" href="/manage-booking">
+              Manage or cancel your booking
+            </Link>
+          </p>
         </div>
       </div>
-      <div className="mx-auto max-w-6xl px-4 pb-8">
-        <p className="border-t border-white/10 pt-6 text-center text-xs italic text-white/50">
-          {PROPERTY.developerNote}
-        </p>
+      <div className="mx-auto max-w-2xl space-y-2 px-4 pb-8">
+        {PROPERTY.developerNote.split("\n\n").map((paragraph, index) => (
+          <p
+            key={index}
+            className={
+              index === 0
+                ? "border-t border-white/10 pt-6 text-center text-xs italic text-white/50"
+                : "text-center text-xs italic text-white/50"
+            }
+          >
+            {paragraph}
+          </p>
+        ))}
       </div>
     </footer>
   );

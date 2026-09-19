@@ -10,6 +10,7 @@ export const PROPERTY = {
   checkOut: "10:00 AM",
   phone: "+91 98170 63210",
   phoneDigits: "919817063210",
+  siteUrl: "https://sunset-homestay.vercel.app",
   mapsUrl:
     "https://www.google.com/maps/search/?api=1&query=Sunset+Point+Home+Stay+And+Food+Corner+Vill+Kotli+Bir+Himachal+Pradesh",
   googleListingUrl: "https://share.google/b6oCY0xbVOKBdQpYH",
@@ -28,9 +29,28 @@ export const PROPERTY = {
     "/images/property/guest-2308854.jpg",
   ],
   // Shown in italics in the footer, out of gratitude to the homestay family.
-  developerNote:
-    "Built out of gratitude for a heartful, welcoming stay of over 50 days — for Vikrant Bhaiya and Seema Bhabhi.",
+  developerNote: `Feel free to book your stay through our website. This was built during my stay at Sunset Point Homestay out of curiosity and gratitude.
+
+Our objective is to help you find these rooms at a cheaper price, book in advance with half of the total cost, and have direct communication with the owners.
+
+Don't worry about the friction you feel during the booking — for any assistance or conflicts, reach out to us on chat. We will be happy to resolve your doubts and ensure you have a great stay and happy vacations, like I had.`,
 } as const;
+
+// Bir Billing is one of the world's top paragliding sites. We don't run
+// these activities ourselves — we just connect interested guests with local,
+// trusted operators so the whole thing stays safe and hassle-free.
+export const ACTIVITIES = [
+  {
+    name: "Paragliding",
+    description:
+      "Bir Billing is a world-famous paragliding site. Tell us on WhatsApp and we'll connect you with trusted, licensed local pilots for a tandem flight from Billing.",
+  },
+  {
+    name: "Bungee Jumping",
+    description:
+      "Nearby operators run bungee jumping for thrill-seekers. Let us know and we'll safely connect you with a trusted, verified guide — no need to search around on your own.",
+  },
+] as const;
 
 export const SHARED_AMENITIES = [
   "High-speed Wi-Fi",

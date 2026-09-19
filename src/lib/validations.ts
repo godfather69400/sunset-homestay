@@ -69,5 +69,14 @@ export const bookingUpdateSchema = z.object({
 });
 
 export const siteSettingsSchema = z.object({
-  depositPercent: z.coerce.number().int().min(1).max(100),
+  depositPercent: z.coerce.number().int().min(1).max(100).optional(),
+  freeCancellationDays: z.coerce.number().int().min(0).max(30).optional(),
+  cancellationFeePercent: z.coerce.number().int().min(0).max(100).optional(),
 });
+
+export const bookingLookupSchema = z.object({
+  bookingNumber: z.string().trim().min(4).max(40),
+  guestPhone: z.string().trim().min(5).max(20),
+});
+
+export const bookingCancelSchema = bookingLookupSchema;

@@ -77,12 +77,22 @@ export function BookingModal({
   const [available, setAvailable] = useState<boolean | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [depositPercent, setDepositPercent] = useState(100);
+  const [cancellationPolicy, setCancellationPolicy] = useState<{
+    freeCancellationDays: number;
+    cancellationFeePercent: number;
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/settings")
       .then((res) => res.json())
       .then((data) => {
         if (typeof data.depositPercent === "number") setDepositPercent(data.depositPercent);
+        if (typeof data.freeCancellationDays === "number" && typeof data.cancellationFeePercent === "number") {
+          setCancellationPolicy({
+            freeCancellationDays: data.freeCancellationDays,
+            cancellationFeePercent: data.cancellationFeePercent,
+          });
+        }
       })
       .catch(() => {});
   }, []);
@@ -298,6 +308,16 @@ export function BookingModal({
                 Check-in {PROPERTY.checkIn} · Check-out {PROPERTY.checkOut}
               </p>
             </div>
+          )}
+
+          {cancellationPolicy && (
+            <p className="text-center text-xs text-muted-foreground">
+              Free cancellation up to {cancellationPolicy.freeCancellationDays} day(s) before check-in. After that a{" "}
+              {cancellationPolicy.cancellationFeePercent}% fee applies.{" "}
+              <a href="/manage-booking" className="underline underline-offset-4">
+                Manage or cancel a booking
+              </a>
+            </p>
           )}
 
           <Button type="submit" className="w-full" disabled={!canPay || submitting}>
