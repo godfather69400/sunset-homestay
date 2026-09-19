@@ -98,17 +98,17 @@ export const ROOM_CATALOG = [
     roomNumber: "102",
     sortOrder: 2,
     description:
-      "A top-floor balcony room with a wide sit-out over Bir and the Billing ridge — the one families ask for. Comfortable for a couple with room for an extra mattress.",
+      "A top-floor balcony room with a wide sit-out over Bir and the Billing ridge, looking straight at the sunset. A quiet, comfortable room for a couple.",
     basePrice: 1200,
-    maxGuests: 4,
-    bedType: "1 Double Bed + Extra Mattress/Bunk",
+    maxGuests: 2,
+    bedType: "1 Double Bed",
     sizeSqFt: 280,
     viewType: "Sunset and valley view from the top-floor balcony",
     amenities: [
       ...SHARED_AMENITIES,
       "Private Balcony",
-      "Family sleeping setup",
       "Mountain View Balcony",
+      "Top-floor sunset outlook",
     ],
     images: [
       "/images/rooms/102/room-102-1.jpeg",
